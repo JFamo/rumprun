@@ -2,7 +2,9 @@ LIB=		bmk_rumpuser
 LIBISPRIVATE=	# defined
 
 # kernel-level source code
-CFLAGS+=        -fno-stack-protector
+# CFLAGS+=        -fno-stack-protector
+# NIRCHG
+CFLAGS+=        -fno-stack-protector -g
 
 SRCS=		rumpuser_base.c
 SRCS+=		rumpuser_clock.c

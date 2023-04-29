@@ -27,6 +27,7 @@
 #include <hw/kernel.h>
 
 #include <bmk-core/pgalloc.h>
+#include <bmk-core/simple_lock.h>
 
 #include <bmk-pcpu/pcpu.h>
 
@@ -37,67 +38,7 @@
 #define PCI_CONF_ADDR 0xcf8
 #define PCI_CONF_DATA 0xcfc
 
-static struct {
-    int intrs;
-    int bus;
-    int dev;
-    int function;
-} pci_data[BMK_MAXINTR];
-
-int
-rumpcomp_pci_port_out(uint32_t port, int io_size, uint32_t val) {
-	switch (io_size) {
-		case 1:
-			__asm__ __volatile__("outb %0, %1" :: "a"((uint8_t)val), "d"((uint16_t)port));
-		break;
-		case 2:
-			__asm__ __volatile__("out %0, %1" :: "a"((uint16_t)val), "d"((uint16_t)port));
-
-		break;
-		case 4:
-			__asm__ __volatile__("outl %0, %1" :: "a"((uint32_t)val), "d"((uint16_t)port));
-		break;
-	}
-	return 0;
-}
-
-int
-rumpcomp_pci_intr_type(void)
-{
-	return 0;  //PCI_INTR_TYPE_INTX;
-}
-
-int
-rumpcomp_pci_get_bdf(unsigned cookie, unsigned *bus, unsigned *dev, unsigned *function) {
-    if (cookie > BMK_MAXINTR) {
-        return 1;
-    }
-
-    *bus = pci_data[cookie].bus;
-    *dev = pci_data[cookie].dev;
-    *function = pci_data[cookie].function;
-    return 0;
-}
-
-int
-rumpcomp_pci_port_in(uint32_t port, int io_size, uint32_t *result) {
-	uint32_t res = 0;
-	switch (io_size){
-		case 1:
-			__asm__ __volatile__("inb %%dx, %%al" : "=a"(res) : "d"((uint16_t)port));
-		break;
-		case 2:
-			__asm__ __volatile__("in %1, %0" : "=a"(res) : "d"((uint16_t)port));
-
-		break;
-		case 4:
-			__asm__ __volatile__("inl %1, %0" : "=a"(res) : "d"((uint16_t)port));
-		break;
-	}
-	*result = res;
-	return 0;
-}
-
+static bmk_simple_lock_t pciconf_lock = BMK_SIMPLE_LOCK_INITIALIZER;
 
 int
 rumpcomp_pci_iospace_init(void)
@@ -121,8 +62,10 @@ rumpcomp_pci_confread(unsigned bus, unsigned dev, unsigned fun, int reg,
 	unsigned int data;
 
 	addr = makeaddr(bus, dev, fun, reg);
+	bmk_simple_lock_enter(&pciconf_lock);
 	outl(PCI_CONF_ADDR, addr);
 	data = inl(PCI_CONF_DATA);
+	bmk_simple_lock_exit(&pciconf_lock);
 
 	*value = data;
 	return 0;
@@ -135,8 +78,10 @@ rumpcomp_pci_confwrite(unsigned bus, unsigned dev, unsigned fun, int reg,
 	uint32_t addr;
 
 	addr = makeaddr(bus, dev, fun, reg);
+	bmk_simple_lock_enter(&pciconf_lock);
 	outl(PCI_CONF_ADDR, addr);
 	outl(PCI_CONF_DATA, value);
+	bmk_simple_lock_exit(&pciconf_lock);
 
 	return 0;
 }
@@ -152,12 +97,6 @@ rumpcomp_pci_irq_map(unsigned bus, unsigned device, unsigned fun,
 		return BMK_EGENERIC;
 
 	intrs[cookie] = intrline;
-
-    pci_data[cookie].intrs = intrline;
-    pci_data[cookie].bus = bus;
-    pci_data[cookie].dev = device;
-    pci_data[cookie].function = fun;
-
 	return 0;
 }
 
@@ -179,10 +118,4 @@ rumpcomp_pci_map(unsigned long addr, unsigned long len)
 {
 
 	return (void *)addr;
-}
-
-void
-rumpcomp_pci_unmap(void *addr)
-{
-
 }

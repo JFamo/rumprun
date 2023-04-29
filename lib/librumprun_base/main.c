@@ -25,6 +25,7 @@
 
 #include <bmk-core/mainthread.h>
 #include <bmk-core/printf.h>
+#include <bmk-core/sched.h>
 
 #include <rumprun-base/config.h>
 #include <rumprun-base/rumprun.h>
@@ -55,13 +56,33 @@ mainlike_fn rumprun_main8;
 		break;							\
 	}
 
+// NIRCHG
+int test_memory = 0xABCD;
+
+// NIRCHG
+void
+test_main(void *cmdline)
+{
+	printf("At the start of test_main\n");
+	while (1);
+}
+
 void
 bmk_mainthread(void *cmdline)
 {
+	// NIRCHG
+	// printf("At the start of bmk_mainthread\n");
+	// printf("test_memory in bmk_mainthread = %p\n", &test_memory);
+	bmk_printf("At the start of bmk_mainthread\n");
+	// while (1);
+
+// #if 0
 	struct rumprun_exec *rre;
 	void *cookie;
 
 	rumprun_boot(cmdline);
+
+	bmk_printf("After rumprun_boot\n");
 
 	rre = TAILQ_FIRST(&rumprun_execs);
 	do {
@@ -75,8 +96,15 @@ bmk_mainthread(void *cmdline)
 		RUNMAIN(8);
 	} while (/*CONSTCOND*/0);
 
+	bmk_printf("After the 0 while loop\n");
+
 	while ((cookie = rumprun_get_finished()))
 		rumprun_wait(cookie);
 
+	bmk_printf("After the non-0 while loop\n");
+
 	rumprun_reboot();
+
+	bmk_printf("After rumprun_reboot\n");
+// #endif
 }

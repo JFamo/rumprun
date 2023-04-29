@@ -231,8 +231,10 @@ probeprereqs ()
 		. "${RROBJ}/config.sh"
 		# probe location of Xen headers
 		found=false
-		for loc in ${XEN_HEADERS:-} /usr/pkg/include/xen /usr/include/xen; do
-			if printf '#include <stdint.h>\n#include <xen.h>\n'\
+		# for loc in ${XEN_HEADERS:-} /usr/pkg/include/xen /usr/include/xen; do
+			# if printf '#include <stdint.h>\n#include <xen.h>\n'\
+		for loc in ${XEN_HEADERS:-} /usr/pkg/include/xen /usr/local/include/xen /usr/include/xen; do
+			if printf '#define __GLIBC_USE(x) __GLIBC_USE_ ## x\n#include <stdint.h>\n#include <xen.h>\n'\
 			    | ${CC} -I${loc} -x c - -c -o /dev/null \
 			    >/dev/null 2>&1 ; then
 				found=true

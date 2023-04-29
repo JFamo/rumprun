@@ -38,12 +38,30 @@
 #include <bmk-core/amd64/asm.h>
 
 ENTRY(bmk_cpu_sched_bouncer)
+	/* movq %rsp, %rax */
+	/* movq $1, %rdi */
+	/* movq $0, %rsi */
+	/* movq $8, %rdx */
+	/* movq $1, %rax */
+	/* syscall */
+
 	popq %rdi
 	popq %rbx
 	pushq $0			/* correct stack alignment for SSE */
-	pushq $0
+	/* NIRCHG */
+	/* pushq $0 */
 	xorq %rbp,%rbp
+	/* NIRCHG */
+
+	/* movq %rbx, %rax      /* Move value in rbx to rax */
+	/* movq $1, %rdi        /* Use file descriptor 1 for stdout */
+	/* movq $0, %rsi        /* Buffer to write from (empty in this case) */
+	/* movq $8, %rdx        /* Number of bytes to write (assuming 64-bit value) */
+	/* movq $1, %rax        /* Syscall number for write */
+	/* syscall              /* Call the write syscall to print value in rax */
+
 	call *%rbx
+	/* 3:	jmp 3b */
 	call bmk_sched_exit
 END(bmk_cpu_sched_bouncer)
 
@@ -54,11 +72,16 @@ ENTRY(bmk_cpu_sched_switch)
 	pushq %r13
 	pushq %r14
 	pushq %r15
+	pushq $1f                       /* save EIP */
 	movq %rsp, (%rdi)               /* save ESP */
-	movq (%rsi), %rsp               /* restore ESP */
-	movq $1f, 8(%rdi)               /* save EIP */
-	pushq 8(%rsi)                   /* restore EIP */
-	ret
+	movq (%rdx), %rsp               /* restore ESP */
+	testq %rsi,%rsi
+	jz 2f                           /* RSI = 0 */
+	call (%rsi)                     /* callback function */
+2:
+	/* NIRCHG */
+	/* 3:	jmp 3b */
+	ret                             /* restore EIP */
 1:
 	popq %r15
 	popq %r14

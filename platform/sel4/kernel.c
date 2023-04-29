@@ -47,7 +47,11 @@
 void
 bmk_platform_cpu_sched_settls(struct bmk_tcb *next)
 {
+    // NIRCHG
+    // printf("In bmk_platform_cpu_sched_settls, next->btcb_tp = %lx\n", next->btcb_tp);
     arch_cpu_sched_settls(next->btcb_tp);
+    // NIRCHG
+    // printf("*************************** In bmk_platform_cpu_sched_settls after arch_cpu_sched_settls ************************\n");
 }
 
 void

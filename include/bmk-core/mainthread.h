@@ -28,4 +28,9 @@
 
 void	bmk_mainthread(void *);
 
+// NIRCHG
+void	test_main(void *);
+
+extern int test_memory;
+
 #endif /* _BMK_CORE_MAINTHREAD_H_ */

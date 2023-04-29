@@ -34,7 +34,8 @@ struct rumprun_boot_config {
     int tmpfs_num_MiB;
 };
 
-void	rumprun_boot(struct rumprun_boot_config *);
+// void	rumprun_boot(struct rumprun_boot_config *);
+void	rumprun_boot(char *);
 
 void *	rumprun(int, mainlike_fn, int, char *[]);
 int	rumprun_wait(void *);

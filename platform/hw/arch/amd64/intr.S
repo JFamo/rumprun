@@ -26,6 +26,28 @@
 #include <hw/multiboot.h>
 #include <hw/kernel.h>
 
+#define SAVE_REGS							 \
+	pushq %rax							;\
+	pushq %rcx							;\
+	pushq %rdx							;\
+	pushq %rdi							;\
+	pushq %rsi							;\
+	pushq %r8							;\
+	pushq %r9							;\
+	pushq %r10							;\
+	pushq %r11
+
+#define RESTORE_REGS							 \
+	popq %r11							;\
+	popq %r10							;\
+	popq %r9							;\
+	popq %r8							;\
+	popq %rsi							;\
+	popq %rdi							;\
+	popq %rdx							;\
+	popq %rcx							;\
+	popq %rax
+
 /*
  * Default trap handlers, which just print info on what type of trap
  * it was.  Generally speaking, we don't except trouble here.
@@ -36,12 +58,16 @@ itsatrap:
 trapstr##num:								;\
 	.asciz reason							;\
 ENTRY(x86_trap_##num)							 \
+	cli								;\
+	SAVE_REGS							;\
 	movq $itsatrap, %rdi						;\
 	call cons_puts							;\
 	movq $trapstr##num, %rdi					;\
 	call cons_puts							;\
 	movq $'\n', %rdi						;\
 	call cons_putc							;\
+	RESTORE_REGS							;\
+	sti								;\
 	iretq								;\
 END(x86_trap_##num)
 
@@ -85,6 +111,19 @@ FATTRAP(13, "general protection")
 FATTRAP(14, "page fault")
 
 /*
+ * Xen HVM callback
+ */
+ENTRY(x86_trap_128)
+	cli
+	SAVE_REGS
+	xorq %rdi, %rdi /* NULL for pt_regs */
+	call _minios_do_hypervisor_callback
+	RESTORE_REGS
+	sti
+	iretq
+END(x86_trap_128)
+
+/*
  * we just ignore most interrupts and traps with this
  * convenient inservice routine
  */
@@ -120,29 +159,19 @@ END(cpu_isr_clock)
 #define INTRSTUB(intnum)						\
 ENTRY(x86_isr_##intnum)							\
 	cli								;\
-	pushq %rax							;\
-	pushq %rbx							;\
-	pushq %rcx							;\
-	pushq %rdx							;\
-	pushq %rdi							;\
-	pushq %rsi							;\
+	SAVE_REGS							;\
 	movq $(1<<intnum), %rdi						;\
 	call isr							;\
-	popq %rsi							;\
-	popq %rdi							;\
-	popq %rdx							;\
-	popq %rcx							;\
-	popq %rbx							;\
-	popq %rax							;\
+	RESTORE_REGS							;\
 	sti								;\
 	iretq								;\
 END(x86_isr_##intnum)
 
-INTRSTUB(9)
-INTRSTUB(3)
-INTRSTUB(4)
 INTRSTUB(5)
+INTRSTUB(7)
+INTRSTUB(9)
 INTRSTUB(10)
 INTRSTUB(11)
+INTRSTUB(12)
 INTRSTUB(14)
 INTRSTUB(15)

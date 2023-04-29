@@ -52,6 +52,9 @@
 
 #include "rumprun-private.h"
 
+// NIRCHG
+#include <bmk-core/printf.h>
+
 static pthread_mutex_t w_mtx;
 static pthread_cond_t w_cv;
 
@@ -75,42 +78,48 @@ __weak_alias(rumprun_main8,rumprun_notmain);
 __weak_alias(rump_init_server,rumprun_enosys);
 
 int rumprun_cold = 1;
-#define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
 
-
-/* Tests for the existence of stdio files.  If present, the current descriptor
-   is closed and the new file reopened */
-static void reopen_stdios(void) {
-	FILE *FDS[] = {stdin, stdout, stderr};
-	const char *PERMS[] = {"r", "w", "w"};
-	const char *PATHS[] = {"/dev/stdin", "/dev/stdout", "/dev/stderr"};
-	for (unsigned int i= 0; i < ARRAY_SIZE(FDS); i++) {
-		if (access(PATHS[i], F_OK ) != -1) {
-			/* file exists */
-			freopen(PATHS[i], PERMS[i], FDS[i]);
-		}
-	}
+// NIRCHG
+/*
+void
+bmk_platform_ready(void)
+{
 }
+*/
 
 void
-rumprun_boot(struct rumprun_boot_config *config)
+rumprun_boot(char *cmdline)
 {
-	char * cmdline = config->cmdline;
 	struct tmpfs_args ta = {
 		.ta_version = TMPFS_ARGS_VERSION,
-		.ta_size_max = config->tmpfs_num_MiB*1024*1024,
+		.ta_size_max = 1*1024*1024,
 		.ta_root_mode = 01777,
 	};
 	int tmpfserrno;
 	char *sysproxy;
 	int rv, x;
 
+	// NIRCHG
+	bmk_printf("At the start of rumprun_boot\n");
+
 	rump_boot_setsigmodel(RUMP_SIGMODEL_IGNORE);
-	rump_init(NULL);
+
+	bmk_printf("In rumprun_boot before rump_init\n");
+
+	rump_init(bmk_platform_ready);
+
+	bmk_printf("In rumprun_boot after rump_init\n");
+
+	// rump_init(NULL);
+	rumprun_lwp_init();
+
+	bmk_printf("In rumprun_boot after rumprun_lwp_init\n");
 
 	/* mount /tmp before we let any userspace bits run */
 	rump_sys_mount(MOUNT_TMPFS, "/tmp", 0, &ta, sizeof(ta));
 	tmpfserrno = errno;
+
+	bmk_printf("In rumprun_boot after rump_sys_mount\n");
 
 	/*
 	 * XXX: _netbsd_userlevel_init() should technically be called
@@ -122,8 +131,9 @@ rumprun_boot(struct rumprun_boot_config *config)
 	 * Eventually, we of course want bootstrap process which is
 	 * rumprun() internally.
 	 */
-	rumprun_lwp_init();
 	_netbsd_userlevel_init();
+
+	bmk_printf("In rumprun_boot after _netbsd_userlevel_init\n");
 
 	/* print tmpfs result only after we bootstrapped userspace */
 	if (tmpfserrno == 0) {
@@ -131,11 +141,6 @@ rumprun_boot(struct rumprun_boot_config *config)
 	} else {
 		warnx("FAILED: mount tmpfs on /tmp: %s", strerror(tmpfserrno));
 	}
-
-	/* Test for presence of stdio files and reopen if they are present.
-	   This makes it possible for stdio driver modules to be loaded that
-	   override the basic rumpkernel cons.c implementation. */
-	reopen_stdios();
 
 	/*
 	 * We set duplicate address detection off for
@@ -146,7 +151,11 @@ rumprun_boot(struct rumprun_boot_config *config)
 	x = 0;
 	sysctlbyname("net.inet.ip.dad_count", NULL, NULL, &x, sizeof(x));
 
+	bmk_printf("In rumprun_boot after sysctlbyname\n");
+
 	rumprun_config(cmdline);
+
+	bmk_printf("In rumprun_boot after rumprun_config\n");
 
 	sysproxy = getenv("RUMPRUN_SYSPROXY");
 	if (sysproxy) {
@@ -154,6 +163,9 @@ rumprun_boot(struct rumprun_boot_config *config)
 			err(1, "failed to init sysproxy at %s", sysproxy);
 		printf("sysproxy listening at: %s\n", sysproxy);
 	}
+
+	// NIRCHG
+	bmk_printf("In rumprunboot just before sched_yield\n");
 
 	/*
 	 * give all threads a chance to run, and ensure that the main

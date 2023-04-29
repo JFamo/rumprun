@@ -16,6 +16,12 @@ RUMPSRC=$2
 BASELIB=$3
 OUTPUT=$4
 
+echo "makepseudolinkstubs.sh print"
+echo $NM
+echo $RUMPSRC
+echo $BASELIB
+echo "makepseudolinkstubs.sh print"
+
 rm -f ${OUTPUT}
 printf '/* AUTOMATICALLY GENERATED */\n\n' >> ${OUTPUT}
 printf '#include <sys/cdefs.h>\n\n' >> ${OUTPUT}

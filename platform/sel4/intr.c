@@ -142,7 +142,8 @@ doisr(void *arg)
         bmk_sched_blockprepare();
 
         bmk_platform_splx(0);
-        bmk_sched_block();
+        // bmk_sched_block();
+        bmk_sched_block(NULL);
         bmk_platform_splhigh();
     }
 }
@@ -213,7 +214,12 @@ intr_init(void)
         SLIST_INIT(&isr_ih_soft[i]);
     }
 
-    isr_thread = bmk_sched_create("isrthr", NULL, 0, doisr, NULL, NULL, 0);
+    // isr_thread = bmk_sched_create("isrthr", NULL, 0, doisr, NULL, NULL, 0);
+    isr_thread = bmk_sched_create("isrthr", NULL, 0, -1, doisr, NULL, NULL, 0);
+
+    // NIRCHG
+    printf("In intr_init after bmk_sched_create\n");
+
     if (!isr_thread) {
         bmk_platform_halt("intr_init");
     }

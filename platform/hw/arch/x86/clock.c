@@ -29,11 +29,14 @@
 
 #include <arch/x86/hypervisor.h>
 #include <arch/x86/var.h>
-#include <arch/x86/tsc.h>
 
 #include <bmk-core/core.h>
 #include <bmk-core/platform.h>
 #include <bmk-core/printf.h>
+
+#include <bmk-pcpu/pcpu.h>
+
+#include <xen/xen.h>
 
 #define NSEC_PER_SEC	1000000000ULL
 /*
@@ -59,16 +62,12 @@ static const uint32_t pit_mult
 /* RTC wall time offset at monotonic time base. */
 static bmk_time_t rtc_epochoffset;
 
-/* True if using pvclock for timekeeping, false if using TSC-based clock. */
-static int have_pvclock;
+static void (*_x86_initclocks_notmain) (void);
+static bmk_time_t (*_x86_cpu_clock_monotonic) (void);
 
 /*
  * TSC clock specific.
  */
-
-/* Base time values at the last call to tscclock_monotonic(). */
-static bmk_time_t time_base;
-static uint64_t tsc_base;
 
 /* Multiplier for converting TSC ticks to nsecs. (0.32) fixed point. */
 static uint32_t tsc_mult;
@@ -98,11 +97,13 @@ struct pvclock_wall_clock {
 
 /*
  * pvclock structures shared with hypervisor.
- * TODO: These should be pointers (for Xen HVM support), but we can't use
- * bmk_pgalloc() here.
+ * _kvm_pvclock_ti is one page; large enough for BMK_MAXCPUS <= 128.
  */
-volatile static struct pvclock_vcpu_time_info pvclock_ti;
-volatile static struct pvclock_wall_clock pvclock_wc;
+extern shared_info_t *HYPERVISOR_shared_info;
+extern char _kvm_pvclock_ti[];
+extern char _kvm_pvclock_wc[];
+volatile static struct pvclock_vcpu_time_info *pvclock_ti[BMK_MAXCPUS];
+volatile static struct pvclock_wall_clock *pvclock_wc;
 
 /*
  * Calculate prod = (a * b) where a is (64.0) fixed point and b is (0.32) fixed
@@ -234,17 +235,29 @@ rtc_gettimeofday(void)
 static bmk_time_t
 tscclock_monotonic(void)
 {
+	struct bmk_cpu_info *cpu = bmk_get_cpu_info();
 	uint64_t tsc_now, tsc_delta;
 
 	/*
 	 * Update time_base (monotonic time) and tsc_base (TSC time).
 	 */
 	tsc_now = rdtsc();
-	tsc_delta = tsc_now - tsc_base;
-	time_base += mul64_32(tsc_delta, tsc_mult);
-	tsc_base = tsc_now;
+	tsc_delta = tsc_now - cpu->tsc_base;
+	cpu->time_base += mul64_32(tsc_delta, tsc_mult);
+	cpu->tsc_base = tsc_now;
 
-	return time_base;
+	return cpu->time_base;
+}
+
+extern struct bmk_cpu_info x86_cpu_info[];
+
+static void
+tscclock_init_notmain(void)
+{
+	struct bmk_cpu_info *cpu = bmk_get_cpu_info();
+
+	cpu->tsc_base = rdtsc();
+	cpu->time_base = x86_cpu_info[0].time_base;
 }
 
 /*
@@ -253,6 +266,7 @@ tscclock_monotonic(void)
 static int
 tscclock_init(void)
 {
+	struct bmk_cpu_info *cpu = bmk_get_cpu_info();
 	uint64_t tsc_freq;
 
 	/* Initialise i8254 timer channel 0 to mode 2 at 100 Hz */
@@ -272,9 +286,9 @@ tscclock_init(void)
 	 * using the i8254 timer.
 	 */
 	spl0();
-	tsc_base = rdtsc();
+	cpu->tsc_base = rdtsc();
 	i8254_delay(100000);
-	tsc_freq = (rdtsc() - tsc_base) * 10;
+	tsc_freq = (rdtsc() - cpu->tsc_base) * 10;
 	splhigh();
 	bmk_printf("x86_initclocks(): TSC frequency estimate is %llu Hz\n",
 		(unsigned long long)tsc_freq);
@@ -290,34 +304,62 @@ tscclock_init(void)
 	 * Monotonic time begins at tsc_base (first read of TSC before
 	 * calibration).
 	 */
-	time_base = mul64_32(tsc_base, tsc_mult);
+	cpu->time_base = mul64_32(cpu->tsc_base, tsc_mult);
 
+	_x86_initclocks_notmain = tscclock_init_notmain;
+	_x86_cpu_clock_monotonic = tscclock_monotonic;
 	return 0;
 }
 
 /*
  * Return monotonic time using PV clock.
  */
-static bmk_time_t
-pvclock_monotonic(void)
+static inline bmk_time_t
+_pvclock_monotonic(void)
 {
+	unsigned long cpu = bmk_get_cpu_info()->cpu;
 	uint32_t version;
 	uint64_t delta, time_now;
 
 	do {
-		version = pvclock_ti.version;
+		version = pvclock_ti[cpu]->version;
 		__asm__ ("mfence" ::: "memory");
-		delta = rdtsc() - pvclock_ti.tsc_timestamp;
-		if (pvclock_ti.tsc_shift < 0)
-			delta >>= -pvclock_ti.tsc_shift;
+		delta = rdtsc() - pvclock_ti[cpu]->tsc_timestamp;
+		if (pvclock_ti[cpu]->tsc_shift < 0)
+			delta >>= -pvclock_ti[cpu]->tsc_shift;
 		else
-			delta <<= pvclock_ti.tsc_shift;
-		time_now = mul64_32(delta, pvclock_ti.tsc_to_system_mul) +
-			pvclock_ti.system_time;
+			delta <<= pvclock_ti[cpu]->tsc_shift;
+		time_now = mul64_32(delta, pvclock_ti[cpu]->tsc_to_system_mul) +
+			pvclock_ti[cpu]->system_time;
 		__asm__ ("mfence" ::: "memory");
-	} while ((pvclock_ti.version & 1) || (pvclock_ti.version != version));
+	} while ((pvclock_ti[cpu]->version & 1) || (pvclock_ti[cpu]->version != version));
 
 	return (bmk_time_t)time_now;
+}
+
+static _Alignas(BMK_PCPU_L1_SIZE) uint64_t monotonic_value;
+
+static bmk_time_t
+pvclock_monotonic(void)
+{
+	bmk_time_t value, time = _pvclock_monotonic();
+
+	/* Synchronize the global atomic value across all CPUs such that
+	   the clock is always monotonic. */
+	value = __atomic_load_n(&monotonic_value, __ATOMIC_SEQ_CST);
+	do {
+		if (value >= time)
+			return value;
+	} while (!__atomic_compare_exchange_n(&monotonic_value,
+		 &value, time, 1, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+
+	return time;
+}
+
+static bmk_time_t
+pvclock_monotonic_stable(void)
+{
+	return _pvclock_monotonic();
 }
 
 /*
@@ -330,14 +372,41 @@ pvclock_read_wall_clock(void)
 	bmk_time_t wc_boot;
 
 	do {
-		version = pvclock_wc.version;
+		version = pvclock_wc->version;
 		__asm__ ("mfence" ::: "memory");
-		wc_boot = pvclock_wc.sec * NSEC_PER_SEC;
-		wc_boot += pvclock_wc.nsec;
+		wc_boot = pvclock_wc->sec * NSEC_PER_SEC;
+		wc_boot += pvclock_wc->nsec;
 		__asm__ ("mfence" ::: "memory");
-	} while ((pvclock_wc.version & 1) || (pvclock_wc.version != version));
+	} while ((pvclock_wc->version & 1) || (pvclock_wc->version != version));
 
 	return wc_boot;
+}
+
+static uint32_t msr_kvm_system_time;
+
+static void
+pvclock_xen_init_notmain(void)
+{
+	unsigned long cpu = bmk_get_cpu_info()->cpu;
+
+	pvclock_ti[cpu] = (struct pvclock_vcpu_time_info *) &HYPERVISOR_shared_info->vcpu_info[cpu].time;
+}
+
+static void
+pvclock_kvm_init_notmain(void)
+{
+	unsigned long cpu = bmk_get_cpu_info()->cpu;
+
+	pvclock_ti[cpu] = (struct pvclock_vcpu_time_info *) _kvm_pvclock_ti + cpu;
+	__asm__ __volatile("wrmsr" ::
+		"c" (msr_kvm_system_time),
+		"a" ((uint32_t)((uintptr_t)pvclock_ti[cpu] | 0x1)),
+#if defined(__x86_64__)
+		"d" ((uint32_t)((uintptr_t)pvclock_ti[cpu] >> 32))
+#else
+		"d" (0)
+#endif
+	);
 }
 
 /*
@@ -348,16 +417,39 @@ pvclock_read_wall_clock(void)
 static int
 pvclock_init(void)
 {
-	uint32_t eax, ebx, ecx, edx;
-	uint32_t msr_kvm_system_time, msr_kvm_wall_clock;
+	uint32_t eax, ebx, ecx, edx, base;
+	uint32_t msr_kvm_wall_clock;
+	int hypervisor;
 
-	if (hypervisor_detect() != HYPERVISOR_KVM)
+	hypervisor = hypervisor_detect();
+	if (hypervisor == HYPERVISOR_XEN) {
+		_x86_initclocks_notmain = pvclock_xen_init_notmain;
+		pvclock_ti[0] = (struct pvclock_vcpu_time_info *) &HYPERVISOR_shared_info->vcpu_info[0].time;
+		pvclock_wc = (struct pvclock_wall_clock *) &HYPERVISOR_shared_info->wc_version;
+
+		if (pvclock_ti[0]->flags & 0x1) {
+			bmk_printf("PV stable clock\n");
+			_x86_cpu_clock_monotonic = pvclock_monotonic_stable;
+		} else {
+			bmk_printf("PV non-stable clock\n");
+			_x86_cpu_clock_monotonic = pvclock_monotonic;
+		}
+		goto hypervisor_xen;
+	}
+
+	if (hypervisor != HYPERVISOR_KVM)
 		return 1;
+
+	_x86_initclocks_notmain = pvclock_kvm_init_notmain;
+	pvclock_ti[0] = (struct pvclock_vcpu_time_info *) _kvm_pvclock_ti;
+	pvclock_wc = (struct pvclock_wall_clock *) _kvm_pvclock_wc;
+
 	/*
 	 * Prefer new-style MSRs, and bail entirely if neither is indicated as
 	 * available by CPUID.
 	 */
-	x86_cpuid(0x40000001, &eax, &ebx, &ecx, &edx);
+	base = hypervisor_base(HYPERVISOR_KVM);
+	x86_cpuid(base + 1, &eax, &ebx, &ecx, &edx);
 	if (eax & (1 << 3)) {
 		msr_kvm_system_time = 0x4b564d01;
 		msr_kvm_wall_clock = 0x4b564d00;
@@ -369,24 +461,36 @@ pvclock_init(void)
 	else
 		return 1;
 
+	if (eax & (1 << 24)) {
+		bmk_printf("KVM stable clock\n");
+		_x86_cpu_clock_monotonic = pvclock_monotonic_stable;
+	} else {
+		bmk_printf("KVM non-stable clock\n");
+		_x86_cpu_clock_monotonic = pvclock_monotonic;
+	}
+
 	__asm__ __volatile("wrmsr" ::
 		"c" (msr_kvm_system_time),
-		"a" ((uint32_t)((uintptr_t)&pvclock_ti | 0x1)),
+		"a" ((uint32_t)((uintptr_t)_kvm_pvclock_ti | 0x1)),
 #if defined(__x86_64__)
-		"d" ((uint32_t)((uintptr_t)&pvclock_ti >> 32))
+		"d" ((uint32_t)((uintptr_t)_kvm_pvclock_ti >> 32))
 #else
 		"d" (0)
 #endif
 	);
 	__asm__ __volatile("wrmsr" ::
 		"c" (msr_kvm_wall_clock),
-		"a" ((uint32_t)((uintptr_t)&pvclock_wc)),
+		"a" ((uint32_t)((uintptr_t)_kvm_pvclock_wc)),
 #if defined(__x86_64__)
-		"d" ((uint32_t)((uintptr_t)&pvclock_wc >> 32))
+		"d" ((uint32_t)((uintptr_t)_kvm_pvclock_wc >> 32))
 #else
 		"d" (0)
 #endif
 	);
+
+
+hypervisor_xen:
+
 	/* Initialise epoch offset using wall clock time */
 	rtc_epochoffset = pvclock_read_wall_clock();
 
@@ -420,12 +524,11 @@ x86_initclocks(void)
 	/*
 	 * Use PV clock if available, otherwise use TSC for timekeeping.
 	 */
-	if (pvclock_init() == 0)
-		have_pvclock = 1;
-	else
+	if (pvclock_init())
 		tscclock_init();
 	bmk_printf("x86_initclocks(): Using %s for timekeeping\n",
-		have_pvclock ? "PV clock" : "TSC");
+		_x86_initclocks_notmain != tscclock_init_notmain  ?
+			"PV clock" : "TSC");
 
 	/*
 	 * Initialise i8254 timer channel 0 to mode 4 (one shot).
@@ -440,16 +543,19 @@ x86_initclocks(void)
 	outb(PIC1_DATA, pic1mask);
 }
 
+void
+x86_initclocks_notmain(void)
+{
+	_x86_initclocks_notmain();
+}
+
 /*
  * Return monotonic time since system boot in nanoseconds.
  */
 bmk_time_t
 bmk_platform_cpu_clock_monotonic(void)
 {
-	if (have_pvclock)
-		return pvclock_monotonic();
-	else
-		return tscclock_monotonic();
+	return _x86_cpu_clock_monotonic();
 }
 
 /*
@@ -467,19 +573,16 @@ bmk_platform_cpu_clock_epochoffset(void)
  * Returns early if any interrupts are serviced, or if the requested delay is
  * too short.
  */
- uint64_t ccount = 0;
- uint64_t prev;
- uint64_t ts;
-
 void
 bmk_platform_cpu_block(bmk_time_t until)
 {
+	struct bmk_cpu_info *cpu = bmk_get_cpu_info();
 	bmk_time_t now, delta_ns;
 	uint64_t delta_ticks;
 	unsigned int ticks;
 	int s;
 
-	bmk_assert(spldepth > 0);
+	bmk_assert(cpu->spldepth > 0);
 
 	/*
 	 * Return if called too late.  Doing do ensures that the time
@@ -534,22 +637,11 @@ bmk_platform_cpu_block(bmk_time_t until)
 	 * able to distinguish if the interrupt was the PIT interrupt
 	 * and no other, but this will do for now.
 	 */
-	s = spldepth;
-	spldepth = 0;
-    prev = rdtsc_pure();
-
-    while(1) {
-        ts = rdtsc_pure();;
-        //
-        if ((ts - prev) < 150) {
-            asm volatile("cli" ::: "memory");
-            ccount += (unsigned long long)(ts - prev);
-            asm volatile("sti" ::: "memory");
-            prev = ts;
-        } else {
-            spldepth = s;
-            prev = ts;
-            return;
-        }
-    }
+	s = cpu->spldepth;
+	cpu->spldepth = 0;
+	__asm__ __volatile__(
+		"sti;\n"
+		"hlt;\n"
+		"cli;\n");
+	cpu->spldepth = s;
 }

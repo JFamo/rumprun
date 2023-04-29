@@ -64,7 +64,8 @@ if(NOT "${CMAKE_C_COMPILER_VERSION}" VERSION_LESS 8.0)
             CFLAGS='-Wno-cast-function-type
             -Wno-packed-not-aligned
             -Wno-tautological-compare
-            -fcommon'
+            -fcommon
+			-g'
     )
     # Suppress warnings that would otherwise stop the compilation
     list(APPEND RUMPKERNEL_FLAGS -F CWARNFLAGS=-w)
@@ -150,7 +151,9 @@ set(
 )
 
 set(LDFLAGS_SEL4 "")
-set(CFLAGS_SEL4 "")
+# set(CFLAGS_SEL4 "")
+# NIRCHG
+set(CFLAGS_SEL4 "-g")
 foreach(RUMPRUN_SEL4LIB IN LISTS RUMPRUN_SEL4LIBS)
     string(
         APPEND CFLAGS_SEL4

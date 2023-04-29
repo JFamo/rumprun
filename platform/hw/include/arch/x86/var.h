@@ -1,10 +1,11 @@
 #ifndef _LOCORE
 struct multiboot_info;
-void	x86_boot(struct multiboot_info *);
+void	x86_boot(struct multiboot_info *, unsigned long);
 
 void	x86_initpic(void);
 void	x86_initidt(void);
 void	x86_initclocks(void);
+void	x86_initclocks_notmain(void);
 void	x86_fillgate(int, void *, int);
 
 /* trap "handlers" */
@@ -22,6 +23,7 @@ void x86_trap_12(void);
 void x86_trap_13(void);
 void x86_trap_14(void);
 void x86_trap_17(void);
+void x86_trap_128(void);
 
 void x86_cpuid(uint32_t, uint32_t *, uint32_t *, uint32_t *, uint32_t *);
 

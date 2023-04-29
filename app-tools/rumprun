@@ -73,6 +73,7 @@ PLATFORM is the rumprun runtime platform to use
     ec2  : create directory with contents necessary for a Amazon EC2 AMI
     iso  : bake app and config into a bootable iso image
     kvm  : hw guest via qemu -enable-kvm
+    hvf  : hw guest via qemu -accel hvf
     qemu : hw guest via qemu -no-kvm
     xen  : xen guest via xl(1)
 
@@ -665,6 +666,8 @@ run_qemu ()
 
 	if [ "${variant}" = "kvm" ]; then
 		opt_kvm="-enable-kvm -cpu host"
+	elif [ "${variant}" = "hvf" ]; then
+		opt_kvm="-accel hvf -cpu host"
 	else
 		# really old qemu versions don't support -no-kvm
 		if ${qemu} -no-kvm -h >/dev/null 2>&1; then
@@ -721,6 +724,12 @@ bake_iso ()
 
 	while getopts "${guestopts}" opt; do
 		case "$opt" in
+		n)
+			netname=_net${nindex}
+			createif_iso ${netname},xenif
+			parse_newnetspec "${netname},${OPTARG}"
+			;;
+
 		b)
 			parse_blkspec "${OPTARG}" || usage
 			;;
@@ -773,7 +782,7 @@ bake_iso ()
 	mkdir -p "${ISODIR}/boot/grub"
 	printf 'set timeout=0\n' > "${ISODIR}/boot/grub/grub.cfg"
 	printf 'menuentry "rumpkernel" {\n' >> "${ISODIR}/boot/grub/grub.cfg"
-	printf '\tmultiboot /boot/%s _RUMPRUN_ROOTFSCFG=/json.cfg\n}\n' \
+	printf '\tmultiboot /boot/%s\n\tmodule /json.cfg cmdline\n}\n' \
 	    $(basename $1) >> "${ISODIR}/boot/grub/grub.cfg"
 	cp ${bootimage} "${ISODIR}/boot"
 	cp "${TMPDIR}/json.cfg" "${ISODIR}"
@@ -910,6 +919,9 @@ iso)
 	;;
 kvm)
 	run_qemu kvm "$@"
+	;;
+hvf)
+	run_qemu hvf "$@"
 	;;
 qemu)
 	run_qemu qemu "$@"

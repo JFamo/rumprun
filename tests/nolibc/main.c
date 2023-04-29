@@ -14,6 +14,14 @@ writestr(int fd, const char *str)
 	return rump_sys_write(fd, str, bmk_strlen(str));
 }
 
+// NIRCHG
+void
+test_main(void *cmdline)
+{
+	printf("At the start of test_main\n");
+	while (1);
+}
+
 void
 bmk_mainthread(void *cmdline)
 {
