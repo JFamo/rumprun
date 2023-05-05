@@ -41,10 +41,10 @@ struct bmk_tcb {
 #endif
 };
 
-#define BMK_MAX_THREADS_ORDER	14
+#define BMK_MAX_THREADS_ORDER	12
 #define BMK_MAX_THREADS		(1UL << BMK_MAX_THREADS_ORDER)
 
-#define BMK_MAX_BLOCKQ_ORDER	16 /* >= BMK_MAX_THREADS_ORDER */
+#define BMK_MAX_BLOCKQ_ORDER	14 /* >= BMK_MAX_THREADS_ORDER */
 #define BMK_MAX_BLOCKQ		(1UL << BMK_MAX_BLOCKQ_ORDER)
 
 struct bmk_thread;
