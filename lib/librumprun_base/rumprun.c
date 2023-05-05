@@ -88,11 +88,13 @@ bmk_platform_ready(void)
 */
 
 void
-rumprun_boot(char *cmdline)
+// rumprun_boot(char *cmdline)
+rumprun_boot(struct rumprun_boot_config *config)
 {
+	char * cmdline = config->cmdline;
 	struct tmpfs_args ta = {
 		.ta_version = TMPFS_ARGS_VERSION,
-		.ta_size_max = 1*1024*1024,
+		.ta_size_max = config->tmpfs_num_MiB*1024*1024,
 		.ta_root_mode = 01777,
 	};
 	int tmpfserrno;
@@ -100,26 +102,26 @@ rumprun_boot(char *cmdline)
 	int rv, x;
 
 	// NIRCHG
-	bmk_printf("At the start of rumprun_boot\n");
+	// bmk_printf("At the start of rumprun_boot\n");
 
 	rump_boot_setsigmodel(RUMP_SIGMODEL_IGNORE);
 
-	bmk_printf("In rumprun_boot before rump_init\n");
+	// bmk_printf("In rumprun_boot before rump_init\n");
 
 	rump_init(bmk_platform_ready);
 
-	bmk_printf("In rumprun_boot after rump_init\n");
+	// bmk_printf("In rumprun_boot after rump_init\n");
 
 	// rump_init(NULL);
 	rumprun_lwp_init();
 
-	bmk_printf("In rumprun_boot after rumprun_lwp_init\n");
+	// bmk_printf("In rumprun_boot after rumprun_lwp_init\n");
 
 	/* mount /tmp before we let any userspace bits run */
 	rump_sys_mount(MOUNT_TMPFS, "/tmp", 0, &ta, sizeof(ta));
 	tmpfserrno = errno;
 
-	bmk_printf("In rumprun_boot after rump_sys_mount\n");
+	// bmk_printf("In rumprun_boot after rump_sys_mount\n");
 
 	/*
 	 * XXX: _netbsd_userlevel_init() should technically be called
@@ -133,7 +135,7 @@ rumprun_boot(char *cmdline)
 	 */
 	_netbsd_userlevel_init();
 
-	bmk_printf("In rumprun_boot after _netbsd_userlevel_init\n");
+	// bmk_printf("In rumprun_boot after _netbsd_userlevel_init\n");
 
 	/* print tmpfs result only after we bootstrapped userspace */
 	if (tmpfserrno == 0) {
@@ -151,11 +153,11 @@ rumprun_boot(char *cmdline)
 	x = 0;
 	sysctlbyname("net.inet.ip.dad_count", NULL, NULL, &x, sizeof(x));
 
-	bmk_printf("In rumprun_boot after sysctlbyname\n");
+	// bmk_printf("In rumprun_boot after sysctlbyname\n");
 
 	rumprun_config(cmdline);
 
-	bmk_printf("In rumprun_boot after rumprun_config\n");
+	// bmk_printf("In rumprun_boot after rumprun_config\n");
 
 	sysproxy = getenv("RUMPRUN_SYSPROXY");
 	if (sysproxy) {
@@ -165,7 +167,7 @@ rumprun_boot(char *cmdline)
 	}
 
 	// NIRCHG
-	bmk_printf("In rumprunboot just before sched_yield\n");
+	// bmk_printf("In rumprunboot just before sched_yield\n");
 
 	/*
 	 * give all threads a chance to run, and ensure that the main
@@ -320,6 +322,8 @@ rumprun(int flags, int (*mainfun)(int, char *[]), int argc, char *argv[])
 
 	pthread_mutex_lock(&w_mtx);
 	while ((rr->rr_flags & (RUMPRUNNER_DONE|RUMPRUNNER_DAEMON)) == 0) {
+		bmk_printf("In rumprun just before pthread_cond_wait\n");
+
 		pthread_cond_wait(&w_cv, &w_mtx);
 	}
 	pthread_mutex_unlock(&w_mtx);

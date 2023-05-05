@@ -73,7 +73,7 @@ bmk_mainthread(void *cmdline)
 	// NIRCHG
 	// printf("At the start of bmk_mainthread\n");
 	// printf("test_memory in bmk_mainthread = %p\n", &test_memory);
-	bmk_printf("At the start of bmk_mainthread\n");
+	// bmk_printf("At the start of bmk_mainthread\n");
 	// while (1);
 
 // #if 0

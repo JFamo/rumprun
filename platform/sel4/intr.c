@@ -218,7 +218,7 @@ intr_init(void)
     isr_thread = bmk_sched_create("isrthr", NULL, 0, -1, doisr, NULL, NULL, 0);
 
     // NIRCHG
-    printf("In intr_init after bmk_sched_create\n");
+    // printf("In intr_init after bmk_sched_create\n");
 
     if (!isr_thread) {
         bmk_platform_halt("intr_init");
