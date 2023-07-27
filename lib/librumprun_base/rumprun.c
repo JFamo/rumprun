@@ -209,6 +209,9 @@ releaseme(void *arg)
 {
 	struct rumprunner *rr = arg;
 
+	// DEBUG
+	bmk_printf("About to broadcast from releaseme()\n");
+
 	pthread_mutex_lock(&w_mtx);
 	rumprun_done++;
 	rr->rr_flags |= RUMPRUNNER_DONE;
@@ -222,6 +225,9 @@ mainbouncer(void *arg)
 	struct rumprunner *rr = arg;
 	const char *progname = rr->rr_argv[0];
 	int rv;
+
+	// DEBUG
+	bmk_printf("In mainbouncer()\n");
 
 	rump_pub_lwproc_switch(rr->rr_lwp);
 
@@ -322,13 +328,21 @@ rumprun(int flags, int (*mainfun)(int, char *[]), int argc, char *argv[])
 
 	pthread_mutex_lock(&w_mtx);
 	while ((rr->rr_flags & (RUMPRUNNER_DONE|RUMPRUNNER_DAEMON)) == 0) {
+		// DEBUG
 		bmk_printf("In rumprun just before pthread_cond_wait\n");
 
 		pthread_cond_wait(&w_cv, &w_mtx);
 	}
 	pthread_mutex_unlock(&w_mtx);
 
+	// DEBUG
+	bmk_printf("Exited cond wait while loop\n");
+
 	if (rr->rr_flags & RUMPRUNNER_DONE) {
+
+		// DEBUG
+		bmk_printf("About to rumprun_wait\n");
+
 		rumprun_wait(rr);
 		rr = NULL;
 	}
@@ -386,6 +400,9 @@ void
 rumprun_daemon(void)
 {
 	struct rumprunner *rr;
+
+	// DEBUG
+	bmk_printf("In rumprun daemon\n");
 
 	LIST_FOREACH(rr, &rumprunners, rr_entries) {
 		if (rr->rr_mainthread == pthread_self())

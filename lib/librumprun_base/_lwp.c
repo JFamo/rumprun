@@ -257,6 +257,9 @@ rumprun_lwp_init(void)
 {
 	void *tcb = bmk_sched_gettcb();
 
+	// DEBUG
+	bmk_printf("Initialized lwp with TCB at %p\n", tcb);
+
 	bmk_sched_set_hook(schedhook);
 
 	meoff = (uintptr_t)&me - (uintptr_t)tcb;
