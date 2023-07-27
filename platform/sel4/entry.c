@@ -305,7 +305,7 @@ int init_rumprun(custom_simple_t *custom_simple)
     ZF_LOGF_IF(res != 0, "sel4platsupport_new_io_ops failed");
 
 #ifdef CONFIG_ARCH_X86
-    res = sel4platsupport_get_io_port_ops(&envn.io_ops.io_port_ops, &env.simple, &env.vka);
+    res = sel4platsupport_get_io_port_ops(&env.io_ops.io_port_ops, &env.simple, &env.vka);
     ZF_LOGF_IF(res != 0, "sel4platsupport_get_io_port_ops failed");
 #endif
 
