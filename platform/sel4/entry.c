@@ -298,14 +298,14 @@ bmk_platform_ready(void)
 
 int init_rumprun(custom_simple_t *custom_simple)
 {
-	// NIRCHG
-	//printf("\nAt the start of init_rumprun in entry.c\n");
+	// DEBUG
+	printf("\nAt the start of init_rumprun in entry.c\n");
 
     int res = sel4platsupport_new_io_ops(&env.vspace, &env.vka, &env.simple, &env.io_ops);
     ZF_LOGF_IF(res != 0, "sel4platsupport_new_io_ops failed");
 
 #ifdef CONFIG_ARCH_X86
-    res = sel4platsupport_get_io_port_ops(&env.io_ops.io_port_ops, &env.simple, &env.vka);
+    res = sel4platsupport_get_io_port_ops(&envn.io_ops.io_port_ops, &env.simple, &env.vka);
     ZF_LOGF_IF(res != 0, "sel4platsupport_get_io_port_ops failed");
 #endif
 
@@ -358,6 +358,8 @@ int init_rumprun(custom_simple_t *custom_simple)
 
     provide_vmem(&env);
 
+    // DEBUG
+    printf("About to bmk_sched_init in entry.c\n");
 	bmk_sched_init();
 
 	// NIRCHG
@@ -386,6 +388,8 @@ int init_rumprun(custom_simple_t *custom_simple)
     // test_main(NULL);
     // printf("test_memory in entry.c = %p\n", &test_memory);
 
+    // DEBUG
+    printf("About to bmk_sched_startmain in entry.c\n");
     bmk_sched_startmain(bmk_mainthread, (void *) &rumprun_config);
     // bmk_sched_startmain(bmk_mainthread, (void *) NULL);
     // bmk_sched_startmain(test_main, (void *) NULL);

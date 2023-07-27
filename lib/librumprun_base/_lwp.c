@@ -259,6 +259,7 @@ rumprun_lwp_init(void)
 
 	// DEBUG
 	bmk_printf("Initialized lwp with TCB at %p\n", tcb);
+	bmk_printf("Value at TCB is %x\n", *((unsigned long*)tcb));
 
 	bmk_sched_set_hook(schedhook);
 
