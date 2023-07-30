@@ -332,6 +332,9 @@ int
 _lwp_exit(void)
 {
 
+	//DEBUG
+	printf("Using LWP Exit\n");
+
 	me->rl_lwpctl.lc_curcpu = LWPCTL_CPU_EXITED;
 	rump_pub_lwproc_releaselwp();
 	bmk_simple_lock_enter(&lwp_lock);

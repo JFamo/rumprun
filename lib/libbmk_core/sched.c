@@ -560,6 +560,9 @@ do_sched_create_withtls(const char *name, void *cookie, int joinable,
 	inittcb(&thread->bt_tcb, tlsarea, TCBOFFSET);
 	initcurrent(tlsarea, thread);
 
+	// DEBUG
+	printf("Initialized thread with TCB at %p and TLS parameter %p, finally set to %p\n", &thread->bt_tcb, tlsarea, thread->bt_tcb.btcb_tp);
+
 	// NIRCHG
 	printf("In do_sched_create_withtls after initcurent\n");
 
