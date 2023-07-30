@@ -89,7 +89,9 @@ void	bmk_sched_unsuspend(struct bmk_thread *);
 void	*bmk_sched_tls_alloc(void);
 void	bmk_sched_tls_free(void *);
 
-void	*bmk_sched_gettcb(void);
+struct bmk_tcb  *bmk_sched_gettcb(void);
+void            *bmk_sched_gettls(void);
+void            *bmk_sched_getsp(void);
 
 void	bmk_cpu_sched_create(struct bmk_thread *, struct bmk_tcb *,
 			     void (*)(void *), void *,

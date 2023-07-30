@@ -452,10 +452,21 @@ bmk_sched_tls_free(void *mem)
 	bmk_memfree(mem, BMK_MEMWHO_WIREDBMK);
 }
 
-void *
+struct bmk_tcb *
 bmk_sched_gettcb(void)
 {
+	return &((void *)bmk_current->bt_tcb);
+}
 
+void *
+bmk_sched_getsp(void)
+{
+	return (void *)bmk_current->bt_tcb.btcb_sp;
+}
+
+void *
+bmk_sched_gettls(void)
+{
 	return (void *)bmk_current->bt_tcb.btcb_tp;
 }
 

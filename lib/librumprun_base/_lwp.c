@@ -90,6 +90,8 @@ assignme(void *tcb, struct rumprun_lwp *value)
 	struct rumprun_lwp **dst = (void *)((uintptr_t)tcb + meoff);
 
 	*dst = value;
+
+	bmk_printf("Starting with TLS at %p, writing %p to %p\n", tcb, value, rumprun_lwp);
 }
 
 int
@@ -255,16 +257,23 @@ schedhook(void *prevcookie, void *nextcookie)
 void
 rumprun_lwp_init(void)
 {
-	void *tcb = bmk_sched_gettcb();
+	void *tls = bmk_sched_gettls();
+	void *tsp = bmk_sched_getsp();
 
 	// DEBUG
-	bmk_printf("Initialized lwp with TCB at %p\n", tcb);
-	bmk_printf("Value at TCB is %x\n", *((unsigned long*)tcb));
+	bmk_printf("Initialized lwp with TCB at %p\n", bmk_sched_gettcb());
+
+	bmk_printf("Initialized lwp with TLS at/value %p / %p\n", &tls, tls);
+	bmk_printf("Value at TLS is %x\n", *((unsigned long*)tls));
+
+	bmk_printf("Initialized lwp with SP at/value %p / %p\n", &tsp, tsp);
+	bmk_printf("Value at SP is %x\n", *((unsigned long*)tsp));
 
 	bmk_sched_set_hook(schedhook);
 
-	meoff = (uintptr_t)&me - (uintptr_t)tcb;
-	assignme(tcb, &mainthread);
+	meoff = (uintptr_t)&me - (uintptr_t)tls;
+	assignme(tls, &mainthread);
+
 	mainthread.rl_thread = bmk_sched_init_mainlwp(&mainthread);
 	mainthread.rl_header.callback = _lwp_park_callback;
 	mainthread.rl_value = RL_MASK_PARK;
@@ -330,7 +339,7 @@ _lwp_exit(void)
 	bmk_simple_lock_exit(&lwp_lock);
 
 	/* could just assign it here, but for symmetry! */
-	assignme(bmk_sched_gettcb(), NULL);
+	assignme(bmk_sched_gettls(), NULL);
 
 	bmk_sched_exit_withtls();
 
@@ -430,7 +439,7 @@ void *
 _lwp_getprivate(void)
 {
 
-	return bmk_sched_gettcb();
+	return bmk_sched_gettls();
 }
 
 void _lwpnullop(void);

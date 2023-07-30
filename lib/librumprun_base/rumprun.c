@@ -314,7 +314,9 @@ rumprun(int flags, int (*mainfun)(int, char *[]), int argc, char *argv[])
 
 	setupproc(rr);
 
-	printf("Creating mainbouncer thread at %p\n", mainbouncer);
+	printf("Creating rumprunner at %p\n", rr);
+	printf("Creating mainbouncer thread at %p\n", &rr->rr_mainthread);
+	printf("Mainbouncer referencing %p\n", mainbouncer);
 
 	if (pthread_create(&rr->rr_mainthread, NULL, mainbouncer, rr) != 0) {
 		fprintf(stderr, "rumprun: running %s failed\n", argv[0]);
