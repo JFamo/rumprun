@@ -455,7 +455,7 @@ bmk_sched_tls_free(void *mem)
 struct bmk_tcb *
 bmk_sched_gettcb(void)
 {
-	return &((void *)bmk_current->bt_tcb);
+	return &bmk_current->bt_tcb;
 }
 
 void *
