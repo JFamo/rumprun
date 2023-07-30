@@ -294,19 +294,19 @@ sched_switch(struct bmk_thread *prev, struct bmk_thread *next,
 		scheduler_hook(prev->bt_cookie, next->bt_cookie);
 
 	// NIRCHG
-	// printf("************************** In sched_switch before settls *****************************\n");
+	printf("************************** In sched_switch before settls *****************************\n");
 
 	bmk_platform_cpu_sched_settls(&next->bt_tcb);
 
 	// NIRCHG
-	// printf("************************** In sched_switch before cpu_sched_switch ********************************\n");
+	printf("************************** In sched_switch before cpu_sched_switch ********************************\n");
 
-	// printf("%p %p %p\n", &prev->bt_tcb, data, &next->bt_tcb);
+	printf("%p %p %p\n", &prev->bt_tcb, data, &next->bt_tcb);
 
 	bmk_cpu_sched_switch(&prev->bt_tcb, data, &next->bt_tcb);
 
 	// NIRCHG
-	// printf("In sched_switch after cpu_sched_switch\n");
+	printf("In sched_switch after cpu_sched_switch\n");
 }
 
 static void
@@ -501,13 +501,13 @@ do_sched_create_withtls(const char *name, void *cookie, int joinable,
 	void *stack_base, unsigned long stack_size, void *tlsarea, bool insert)
 {
 	// NIRCHG
-	// printf("At the start of do_sched_create_withtls\n");
+	printf("At the start of do_sched_create_withtls\n");
 
 	size_t idx = lfring_dequeue(freeq, BMK_MAX_THREADS_ORDER, false);
 	struct bmk_thread *thread;
 
 	// NIRCHG
-	// printf("In do_sched_create_withtls after lfring_dequeue\n");
+	printf("In do_sched_create_withtls after lfring_dequeue\n");
 
 	if (idx == LFRING_EMPTY)
 		return NULL;
@@ -535,13 +535,13 @@ do_sched_create_withtls(const char *name, void *cookie, int joinable,
 	}
 
 	// NIRCHG
-	// printf("In do_sched_create_withtls before bmk_cpu_sched_create\n");
+	printf("In do_sched_create_withtls before bmk_cpu_sched_create\n");
 
 	bmk_cpu_sched_create(thread, &thread->bt_tcb, f, data,
 	    stack_base, stack_size);
 
 	// NIRCHG
-	// printf("In do_sched_create_withtls after bmk_cpu_sched_create\n");
+	printf("In do_sched_create_withtls after bmk_cpu_sched_create\n");
 
 	thread->bt_cookie = cookie;
 	thread->bt_wakeup_time = BMK_SCHED_BLOCK_INFTIME;
@@ -550,7 +550,7 @@ do_sched_create_withtls(const char *name, void *cookie, int joinable,
 	initcurrent(tlsarea, thread);
 
 	// NIRCHG
-	// printf("In do_sched_create_withtls after initcurent\n");
+	printf("In do_sched_create_withtls after initcurent\n");
 
 	thread->bt_block_node = do_block_node_alloc();
 	thread->bt_block_node->object = thread;
@@ -560,7 +560,7 @@ do_sched_create_withtls(const char *name, void *cookie, int joinable,
 				idx, false);
 
 	// NIRCHG
-	// printf("In do_sched_create_withtls after lfring_enqueue\n");
+	printf("In do_sched_create_withtls after lfring_enqueue\n");
 
 	return thread;
 }
@@ -708,7 +708,7 @@ void
 bmk_sched_init(void)
 {
 	// NIRCHG
-	// printf("At the start of bmk_sched_init\n");
+	printf("At the start of bmk_sched_init\n");
 
 	unsigned long tlsinit;
 	struct bmk_tcb tcbinit;
@@ -738,13 +738,13 @@ bmk_sched_init(void)
 		bmk_platform_halt("cannot allocate thread_array");
 
 	// NIRCHG
-	// printf("In bmk_sched_init before bmk_memalloc\n");
+	printf("In bmk_sched_init before bmk_memalloc\n");
 
 	freeq = bmk_memalloc(LFRING_SIZE(BMK_MAX_THREADS_ORDER),
 			LFRING_ALIGN, BMK_MEMWHO_WIREDBMK);
 	
 	// NIRCHG
-	// printf("In bmk_sched_init after bmk_memalloc\n");
+	printf("In bmk_sched_init after bmk_memalloc\n");
 
 	if (!freeq)
 		bmk_platform_halt("cannot allocate freeq");
