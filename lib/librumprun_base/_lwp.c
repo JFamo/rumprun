@@ -91,7 +91,7 @@ assignme(void *tcb, struct rumprun_lwp *value)
 
 	*dst = value;
 
-	bmk_printf("Starting with TLS at %p, writing %p to %p\n", tcb, value, rumprun_lwp);
+	bmk_printf("Starting with TLS at %p, writing %p to %p\n", tcb, value, dst);
 }
 
 int
