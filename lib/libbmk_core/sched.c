@@ -294,19 +294,19 @@ sched_switch(struct bmk_thread *prev, struct bmk_thread *next,
 		scheduler_hook(prev->bt_cookie, next->bt_cookie);
 
 	// NIRCHG
-	printf("************************** In sched_switch before settls *****************************\n");
+	bmk_printf("************************** In sched_switch before settls *****************************\n");
 
 	bmk_platform_cpu_sched_settls(&next->bt_tcb);
 
 	// NIRCHG
-	printf("************************** In sched_switch before cpu_sched_switch ********************************\n");
+	bmk_printf("************************** In sched_switch before cpu_sched_switch ********************************\n");
 
-	printf("%p %p %p\n", &prev->bt_tcb, data, &next->bt_tcb);
+	bmk_printf("%p %p %p\n", &prev->bt_tcb, data, &next->bt_tcb);
 
 	bmk_cpu_sched_switch(&prev->bt_tcb, data, &next->bt_tcb);
 
 	// NIRCHG
-	printf("In sched_switch after cpu_sched_switch\n");
+	bmk_printf("In sched_switch after cpu_sched_switch\n");
 }
 
 static void
@@ -512,13 +512,13 @@ do_sched_create_withtls(const char *name, void *cookie, int joinable,
 	void *stack_base, unsigned long stack_size, void *tlsarea, bool insert)
 {
 	// NIRCHG
-	printf("At the start of do_sched_create_withtls\n");
+	bmk_printf("At the start of do_sched_create_withtls\n");
 
 	size_t idx = lfring_dequeue(freeq, BMK_MAX_THREADS_ORDER, false);
 	struct bmk_thread *thread;
 
 	// NIRCHG
-	printf("In do_sched_create_withtls after lfring_dequeue\n");
+	bmk_printf("In do_sched_create_withtls after lfring_dequeue\n");
 
 	if (idx == LFRING_EMPTY)
 		return NULL;
@@ -546,13 +546,13 @@ do_sched_create_withtls(const char *name, void *cookie, int joinable,
 	}
 
 	// NIRCHG
-	printf("In do_sched_create_withtls before bmk_cpu_sched_create\n");
+	bmk_printf("In do_sched_create_withtls before bmk_cpu_sched_create\n");
 
 	bmk_cpu_sched_create(thread, &thread->bt_tcb, f, data,
 	    stack_base, stack_size);
 
 	// NIRCHG
-	printf("In do_sched_create_withtls after bmk_cpu_sched_create\n");
+	bmk_printf("In do_sched_create_withtls after bmk_cpu_sched_create\n");
 
 	thread->bt_cookie = cookie;
 	thread->bt_wakeup_time = BMK_SCHED_BLOCK_INFTIME;
@@ -561,11 +561,11 @@ do_sched_create_withtls(const char *name, void *cookie, int joinable,
 	initcurrent(tlsarea, thread);
 
 	// DEBUG
-	printf("Initialized %s thread with TCB at %p and TLS parameter %p, finally set to %p\n", name, &thread->bt_tcb, tlsarea, thread->bt_tcb.btcb_tp);
-	printf("Value at TLS is %lx\n", *((unsigned long*)thread->bt_tcb.btcb_tp));
+	bmk_printf("Initialized %s thread with TCB at %p and TLS parameter %p, finally set to %p\n", name, &thread->bt_tcb, tlsarea, thread->bt_tcb.btcb_tp);
+	bmk_printf("Value at TLS is %lx\n", *((unsigned long*)thread->bt_tcb.btcb_tp));
 
 	// NIRCHG
-	printf("In do_sched_create_withtls after initcurent\n");
+	bmk_printf("In do_sched_create_withtls after initcurent\n");
 
 	thread->bt_block_node = do_block_node_alloc();
 	thread->bt_block_node->object = thread;
@@ -575,7 +575,7 @@ do_sched_create_withtls(const char *name, void *cookie, int joinable,
 				idx, false);
 
 	// NIRCHG
-	printf("In do_sched_create_withtls after lfring_enqueue\n");
+	bmk_printf("In do_sched_create_withtls after lfring_enqueue\n");
 
 	return thread;
 }
@@ -636,7 +636,7 @@ void
 bmk_sched_exit(void)
 {
 	// DEBUG
-	printf("Performing bmk_sched_exit_withtls after freeing %p\n", (void *)bmk_current->bt_tcb.btcb_tp);
+	bmk_printf("Performing bmk_sched_exit_withtls after freeing %p\n", (void *)bmk_current->bt_tcb.btcb_tp);
 
 	bmk_sched_tls_free((void *)bmk_current->bt_tcb.btcb_tp);
 	bmk_sched_exit_withtls();
@@ -727,7 +727,7 @@ void
 bmk_sched_init(void)
 {
 	// NIRCHG
-	printf("At the start of bmk_sched_init\n");
+	bmk_printf("At the start of bmk_sched_init\n");
 
 	unsigned long tlsinit;
 	struct bmk_tcb tcbinit;
@@ -757,13 +757,13 @@ bmk_sched_init(void)
 		bmk_platform_halt("cannot allocate thread_array");
 
 	// NIRCHG
-	printf("In bmk_sched_init before bmk_memalloc\n");
+	bmk_printf("In bmk_sched_init before bmk_memalloc\n");
 
 	freeq = bmk_memalloc(LFRING_SIZE(BMK_MAX_THREADS_ORDER),
 			LFRING_ALIGN, BMK_MEMWHO_WIREDBMK);
 	
 	// NIRCHG
-	printf("In bmk_sched_init after bmk_memalloc\n");
+	bmk_printf("In bmk_sched_init after bmk_memalloc\n");
 
 	if (!freeq)
 		bmk_platform_halt("cannot allocate freeq");
@@ -802,12 +802,12 @@ bmk_sched_init(void)
 	inittcb(&tcbinit, &tlsinit, 0);
 
 	// NIRCHG
-	printf("In bmk_sched_init before bmk_platform_cpu_sched_settls\n");
+	bmk_printf("In bmk_sched_init before bmk_platform_cpu_sched_settls\n");
 
 	bmk_platform_cpu_sched_settls(&tcbinit);
 
 	// NIRCHG
-	printf("In bmk_sched_init after bmk_platform_cpu_sched_settls\n");
+	bmk_printf("In bmk_sched_init after bmk_platform_cpu_sched_settls\n");
 
 	/*
 	 * Not sure if the membars are necessary, but better to be
@@ -828,7 +828,7 @@ bmk_sched_init(void)
 
 static void idle_thread(void *arg)
 {
-	// printf("In the idle thread\n");
+	// bmk_printf("In the idle thread\n");
 	while (1) {
 		schedule(NULL);
 	}
@@ -838,20 +838,20 @@ void __attribute__((noreturn))
 bmk_sched_startmain(void (*mainfun)(void *), void *arg)
 {
 	// NIRCHG
-	// printf("At the start of bmk_sched_startmain\n");
+	// bmk_printf("At the start of bmk_sched_startmain\n");
 
 	struct bmk_thread *thread;
 	struct bmk_cpu_info *info = &sched_cpu_info; // bmk_get_cpu_info();
 	struct bmk_thread initthread;
 
 	// NIRCHG
-	// printf("In bmk_sched_startmain before do_sched_create\n");
+	// bmk_printf("In bmk_sched_startmain before do_sched_create\n");
 
 	thread = do_sched_create("idle", NULL, 0, (unsigned int) info->cpu,
 			idle_thread, NULL, NULL, 0, false);
 
 	// NIRCHG
-	// printf("In bmk_sched_startmain after do_sched_create\n");
+	// bmk_printf("In bmk_sched_startmain after do_sched_create\n");
 
 	info->idle_thread = thread;
 	bmk_memset(&initthread, 0, sizeof(initthread));
@@ -866,7 +866,7 @@ bmk_sched_startmain(void (*mainfun)(void *), void *arg)
 	}
 
 	// NIRCHG
-	// printf("In bmk_sched_startmain before sched_switch\n");
+	// bmk_printf("In bmk_sched_startmain before sched_switch\n");
 
 	/*
 	 * Manually switch to mainthread without going through
