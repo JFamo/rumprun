@@ -3,4 +3,4 @@
 	url = https://github.com/rumpkernel/buildrump.sh
 [submodule "src-netbsd"]
 	path = src-netbsd
-	url = https://github.com/NiramayVaidya/src-netbsd
+	url = https://github.com/JFamo/src-netbsd

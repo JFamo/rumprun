@@ -337,11 +337,14 @@ rumprun(int flags, int (*mainfun)(int, char *[]), int argc, char *argv[])
 		printf("In rumprun just before pthread_cond_wait\n");
 
 		pthread_cond_wait(&w_cv, &w_mtx);
-	}
-	pthread_mutex_unlock(&w_mtx);
 
+		// DEBUG
+		printf("Successfully performed cond_wait\n");
+	
 	// DEBUG
 	printf("Exited cond wait while loop\n");
+
+	pthread_mutex_unlock(&w_mtx);
 
 	if (rr->rr_flags & RUMPRUNNER_DONE) {
 
