@@ -400,6 +400,8 @@ rumpuser_cv_destroy(struct rumpuser_cv *cv)
 void
 rumpuser_cv_wait(struct rumpuser_cv *cv, struct rumpuser_mtx *mtx)
 {
+	bmk_printf("In rumpuser_cv_wait\n");
+
 	struct waiter w;
 	struct block_cv bcv;
 	int nlocks;
@@ -425,6 +427,8 @@ rumpuser_cv_wait(struct rumpuser_cv *cv, struct rumpuser_mtx *mtx)
 void
 rumpuser_cv_wait_nowrap(struct rumpuser_cv *cv, struct rumpuser_mtx *mtx)
 {
+	bmk_printf("In rumpuser_cv_wait_nowrap\n");
+
 	struct waiter w;
 	struct block_cv bcv;
 
