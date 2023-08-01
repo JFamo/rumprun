@@ -290,6 +290,10 @@ static void
 sched_switch(struct bmk_thread *prev, struct bmk_thread *next,
 	     struct bmk_block_data *data)
 {
+
+	// DEBUG
+	bmk_printf("************************** In sched_switch before scheduler_hook *****************************\n");
+
 	if (scheduler_hook)
 		scheduler_hook(prev->bt_cookie, next->bt_cookie);
 
