@@ -4,3 +4,4 @@
 [submodule "src-netbsd"]
 	path = src-netbsd
 	url = https://github.com/JFamo/src-netbsd
+	commit = cfea347b3ca561c2c1e5f189a144bd7f3322ad11
