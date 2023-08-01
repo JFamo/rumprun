@@ -334,19 +334,19 @@ rumprun(int flags, int (*mainfun)(int, char *[]), int argc, char *argv[])
 	pthread_mutex_lock(&w_mtx);
 	while ((rr->rr_flags & (RUMPRUNNER_DONE|RUMPRUNNER_DAEMON)) == 0) {
 		// DEBUG
-		bmk_printf("In rumprun just before pthread_cond_wait\n");
+		printf("In rumprun just before pthread_cond_wait\n");
 
 		pthread_cond_wait(&w_cv, &w_mtx);
 	}
 	pthread_mutex_unlock(&w_mtx);
 
 	// DEBUG
-	bmk_printf("Exited cond wait while loop\n");
+	printf("Exited cond wait while loop\n");
 
 	if (rr->rr_flags & RUMPRUNNER_DONE) {
 
 		// DEBUG
-		bmk_printf("About to rumprun_wait\n");
+		printf("About to rumprun_wait\n");
 
 		rumprun_wait(rr);
 		rr = NULL;
