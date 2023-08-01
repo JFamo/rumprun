@@ -64,8 +64,8 @@ bmk_cpu_sched_create(struct bmk_thread *thread, struct bmk_tcb *tcb,
 	void (*f)(void *), void *arg,
 	void *stack_base, unsigned long stack_size)
 {
-	// NIRCHG
-	// printf("At the start of bmk_cpu_sched_create\n");
+	// DEBUG
+	printf("At the start of bmk_cpu_sched_create with tcb %p\n", tcb);
 
 	// printf("test_memory in bmk_cpu_sched_create = %p\n", &test_memory);
 	// printf("test_memory from bmk_cpu_sched_create = %x\n", test_memory);
