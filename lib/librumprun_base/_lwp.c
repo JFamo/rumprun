@@ -285,6 +285,8 @@ int
 _lwp_park(clockid_t clock_id, int flags, struct timespec *ts,
 	lwpid_t unpark, const void *hint, const void *unparkhint)
 {
+	bmk_printf("In _lwp_park\n");
+
 	int rv;
 
 	if (unpark)
