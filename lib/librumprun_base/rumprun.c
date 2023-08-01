@@ -340,6 +340,8 @@ rumprun(int flags, int (*mainfun)(int, char *[]), int argc, char *argv[])
 
 		// DEBUG
 		printf("Successfully performed cond_wait\n");
+
+	}
 	
 	// DEBUG
 	printf("Exited cond wait while loop\n");
