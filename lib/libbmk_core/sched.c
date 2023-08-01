@@ -561,7 +561,8 @@ do_sched_create_withtls(const char *name, void *cookie, int joinable,
 	initcurrent(tlsarea, thread);
 
 	// DEBUG
-	printf("Initialized thread with TCB at %p and TLS parameter %p, finally set to %p\n", &thread->bt_tcb, tlsarea, thread->bt_tcb.btcb_tp);
+	printf("Initialized %s thread with TCB at %p and TLS parameter %p, finally set to %p\n", name, &thread->bt_tcb, tlsarea, thread->bt_tcb.btcb_tp);
+	printf("Value at TLS is %x\n", *((unsigned long*)thread->bt_tcb.btcb_tp));
 
 	// NIRCHG
 	printf("In do_sched_create_withtls after initcurent\n");
@@ -618,6 +619,7 @@ static struct bmk_block_data exit_data = { .callback = exit_callback };
 void
 bmk_sched_exit_withtls(void)
 {
+
 	struct bmk_thread *thread = bmk_current;
 
 	if (thread->bt_flags & THR_MUSTJOIN) {
@@ -633,6 +635,9 @@ bmk_sched_exit_withtls(void)
 void
 bmk_sched_exit(void)
 {
+	// DEBUG
+	printf("Performing bmk_sched_exit_withtls after freeing %p\n", (void *)bmk_current->bt_tcb.btcb_tp);
+
 	bmk_sched_tls_free((void *)bmk_current->bt_tcb.btcb_tp);
 	bmk_sched_exit_withtls();
 }

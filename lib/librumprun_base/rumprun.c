@@ -222,12 +222,12 @@ releaseme(void *arg)
 static void *
 mainbouncer(void *arg)
 {
+	// DEBUG
+	bmk_printf("In mainbouncer()\n");
+
 	struct rumprunner *rr = arg;
 	const char *progname = rr->rr_argv[0];
 	int rv;
-
-	// DEBUG
-	bmk_printf("In mainbouncer()\n");
 
 	rump_pub_lwproc_switch(rr->rr_lwp);
 
@@ -323,6 +323,7 @@ rumprun(int flags, int (*mainfun)(int, char *[]), int argc, char *argv[])
 		free(rr);
 		return NULL;
 	}
+
 	LIST_INSERT_HEAD(&rumprunners, rr, rr_entries);
 
 	/* async launch? */
@@ -358,6 +359,9 @@ rumprun_wait(void *cookie)
 {
 	struct rumprunner *rr = cookie;
 	void *retval;
+
+	// DEBUG
+	printf("IN rumprun_wait\n");
 
 	pthread_join(rr->rr_mainthread, &retval);
 	LIST_REMOVE(rr, rr_entries);
